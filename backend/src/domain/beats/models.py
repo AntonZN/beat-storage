@@ -46,7 +46,7 @@ class Beat(OrderedModel):
     def upload_to(self, filename):
         name = uuid.uuid4()
         ext = filename.split(".")[-1]
-        return f"beats/{self.id}/files/{name}.{ext}"
+        return f"beats/{name}.{ext}"
 
     name = models.CharField(max_length=100, verbose_name="Название")
     categories = models.ManyToManyField(
