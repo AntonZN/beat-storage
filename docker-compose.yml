@@ -9,7 +9,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./CaddyfileDev:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile
       - /share/caddy/data:/data
       - /share/caddy/config:/config
       - static_volume:/app/static
