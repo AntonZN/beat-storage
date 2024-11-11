@@ -1,0 +1,16 @@
+localhost {
+
+    log {
+        output stdout
+        format console
+        level info
+    }
+
+    handle_path /static/* {
+        root * /app/static
+        file_server
+    }
+
+    reverse_proxy /admin*  http://backend:8000
+    reverse_proxy /*  http://backend:8080
+}
