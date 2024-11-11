@@ -12,7 +12,10 @@ router = APIRouter()
 
 
 def parse_category_ids(
-    category_ids: Optional[str] = Query(None, description="Список id категорий через ,")
+    category_ids: Optional[str] = Query(
+        None,
+        description="Список id категорий через запятую. Пример: `1,2,3`",
+    )
 ) -> Optional[List[int]]:
     if category_ids:
         try:
@@ -26,7 +29,10 @@ def parse_category_ids(
 
 
 def parse_tag_ids(
-    tag_ids: Optional[str] = Query(None, description="Список id тегов через ,")
+    tag_ids: Optional[str] = Query(
+        None,
+        description="Список id тегов через запятую. Пример: `5,6`",
+    )
 ) -> Optional[List[int]]:
     if tag_ids:
         try:
@@ -40,6 +46,9 @@ def parse_tag_ids(
 
 
 def get_queryset_beats(tag_ids=None, category_ids=None, is_paid=None, order_by=None):
+    """
+    Формирует queryset для выборки битов с фильтрацией и сортировкой.
+    """
     queryset = Beat.objects.filter(is_hidden=False).prefetch_related(
         Prefetch("categories", queryset=Category.objects.all()),
         Prefetch("tags", queryset=Tag.objects.all()),
@@ -69,6 +78,7 @@ def get_queryset_beats(tag_ids=None, category_ids=None, is_paid=None, order_by=N
     response_model=List[TagSchema],
     status_code=status.HTTP_200_OK,
     name="Список тегов",
+    description="Возвращает список всех доступных тегов.",
 )
 async def get_all_tags():
     return await TagSchema.from_qs(Tag.objects.all())
@@ -78,7 +88,8 @@ async def get_all_tags():
     "/categories/",
     response_model=List[CategorySchema],
     status_code=status.HTTP_200_OK,
-    name="Список тегов",
+    name="Список категорий",
+    description="Возвращает список всех категорий.",
 )
 async def get_all_categories():
     return await CategorySchema.from_qs(Category.objects.all())
@@ -89,12 +100,28 @@ async def get_all_categories():
     response_model=Page[BeatSchema],
     status_code=status.HTTP_200_OK,
     name="Список битов",
+    description="Метод возвращает список битов с возможностью фильтрации и сортировки.",
+    responses={
+        200: {"description": "Успешное получение списка битов"},
+        400: {"description": "Некорректные параметры запроса"},
+    },
 )
 async def get_beats(
     category_ids: Optional[List[int]] = Depends(parse_category_ids),
     tag_ids: Optional[List[int]] = Depends(parse_tag_ids),
-    is_paid: Optional[bool] = False,
-    order_by: Literal["default", "created", "likes", "usages"] = "default",
+    is_paid: Optional[bool] = Query(
+        False, description="Фильтр по платным/бесплатным битам. По умолчанию: `False`"
+    ),
+    order_by: Literal["default", "created", "likes", "usages"] = Query(
+        "default",
+        description=(
+            "Сортировка битов:\n"
+            "- `default`: стандартная сортировка\n"
+            "- `created`: сначала новые\n"
+            "- `likes`: по количеству лайков\n"
+            "- `usages`: по количеству использований"
+        ),
+    ),
 ):
     beats_queryset = get_queryset_beats(tag_ids, category_ids, is_paid, order_by)
     beats = []
@@ -109,6 +136,11 @@ async def get_beats(
     "/beats/{beat_id}/event/usage",
     status_code=status.HTTP_200_OK,
     name="Событие - Бит использован",
+    description="Увеличивает счетчик использований для выбранного бита.",
+    responses={
+        200: {"description": "Счетчик использований успешно увеличен"},
+        404: {"description": "Бит не найден"},
+    },
 )
 async def beat_usage(beat_id: int):
     await Beat.objects.filter(id=beat_id).aupdate(usage_count=F("usage_count") + 1)
@@ -118,6 +150,11 @@ async def beat_usage(beat_id: int):
     "/beats/{beat_id}/event/like",
     status_code=status.HTTP_200_OK,
     name="Событие - Поставить лайк",
+    description="Увеличивает счетчик лайков для выбранного бита.",
+    responses={
+        200: {"description": "Счетчик лайков успешно увеличен"},
+        404: {"description": "Бит не найден"},
+    },
 )
 async def beat_like(beat_id: int):
     await Beat.objects.filter(id=beat_id).aupdate(likes_count=F("likes_count") + 1)

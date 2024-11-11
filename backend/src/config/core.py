@@ -11,6 +11,7 @@ environ.Env.read_env(BASE_DIR / "../.env")
 DEBUG = env("DEBUG", default=True)
 USE_POSTGRES = env("USE_POSTGRES", default=False)
 SECRET_KEY = env("SECRET_KEY", default="beats")
+API_AUTH_TOKEN = env("API_AUTH_TOKEN")
 
 ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = [

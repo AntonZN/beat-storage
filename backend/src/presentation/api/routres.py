@@ -12,10 +12,12 @@ service_api_router = APIRouter(
 
 
 api_routes = {
-    "/beats": ["Апи", [beats_router]],
+    "/": ["Апи", [beats_router]],
 }
 
 
 for prefix, (tag, routers) in api_routes.items():
     for router in routers:
-        api_router.include_router(router, prefix=prefix, tags=[tag])
+        api_router.include_router(
+            router, prefix=prefix, tags=[tag], dependencies=[Depends(token_validation)]
+        )
