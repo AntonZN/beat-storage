@@ -40,9 +40,11 @@ AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
 AWS_PUBLIC_MEDIA_LOCATION = "media"
 
-AWS_STORAGE_BUCKET_NAME = "insocium-business"
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.storage.yandexcloud.net"
-AWS_S3_ENDPOINT_URL = "https://storage.yandexcloud.net"
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="storage")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://minio:9000")
+AWS_S3_CUSTOM_DOMAIN = env(
+    "AWS_S3_CUSTOM_DOMAIN", default=f"localhost:9000/{AWS_STORAGE_BUCKET_NAME}"
+)
 
 STORAGES = {
     "default": {
