@@ -13,6 +13,9 @@ USE_POSTGRES = env("USE_POSTGRES", default=False)
 SECRET_KEY = env("SECRET_KEY", default="beats")
 
 ALLOWED_HOSTS = ["*"]
+CSRF_TRUSTED_ORIGINS = [
+    env("CSRF_TRUSTED_ORIGINS"),
+]
 
 REDIS_HOST = "redis://127.0.0.1:6379"
 STATIC_ROOT = os.path.join(BASE_DIR, "../static/")
