@@ -12,7 +12,7 @@ service_api_router = APIRouter(
 
 
 api_routes = {
-    "/": ["Апи", [beats_router]],
+    "": ["Апи", [beats_router]],
 }
 
 
