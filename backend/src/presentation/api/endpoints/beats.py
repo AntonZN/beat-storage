@@ -45,7 +45,7 @@ def parse_tag_ids(
     return None
 
 
-def get_queryset_beats(tag_ids=None, category_ids=None, is_paid=None, order_by=None):
+def get_queryset_beats(tag_ids=None, category_ids=None, order_by=None):
     """
     Формирует queryset для выборки битов с фильтрацией и сортировкой.
     """
@@ -59,9 +59,6 @@ def get_queryset_beats(tag_ids=None, category_ids=None, is_paid=None, order_by=N
 
     if tag_ids:
         queryset = queryset.filter(tags__id__in=tag_ids)
-
-    if is_paid is not None:
-        queryset = queryset.filter(is_paid=is_paid)
 
     ordering_map = {
         "default": "order",
@@ -110,9 +107,6 @@ async def get_all_categories():
 async def get_beats(
     category_ids: Optional[List[int]] = Depends(parse_category_ids),
     tag_ids: Optional[List[int]] = Depends(parse_tag_ids),
-    is_paid: Optional[bool] = Query(
-        False, description="Фильтр по платным/бесплатным битам. По умолчанию: `False`"
-    ),
     order_by: Literal["default", "created", "likes", "usages"] = Query(
         "default",
         description=(
@@ -124,7 +118,7 @@ async def get_beats(
         ),
     ),
 ):
-    beats_queryset = get_queryset_beats(tag_ids, category_ids, is_paid, order_by)
+    beats_queryset = get_queryset_beats(tag_ids, category_ids, order_by)
     beats = []
 
     async for beat in beats_queryset:
