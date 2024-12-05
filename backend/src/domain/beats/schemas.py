@@ -36,6 +36,7 @@ class BeatSchema(BaseModel):
 
     @field_validator("file", mode="before")
     def get_file_url(cls, v):
+        print(type(v))
         if not v:
             return None
         if v and type(v) is FieldFile:
