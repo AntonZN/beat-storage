@@ -36,28 +36,27 @@ class BeatSchema(BaseModel):
 
     @field_validator("file", mode="before")
     def get_file_url(cls, v):
-        print(type(v))
         if not v:
             return None
         if v and type(v) is FieldFile:
-            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
+            return v.url
         else:
-            return v
+            return f"{settings.AWS_FULL_BASE_URL}/{v}"
 
     @field_validator("preview", mode="before")
     def get_preview_url(cls, v):
         if not v:
             return None
         if v and type(v) is FieldFile:
-            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
+            return v.url
         else:
-            return v
+            return f"{settings.AWS_FULL_BASE_URL}/{v}"
 
     @field_validator("image", mode="before")
     def get_image_url(cls, v):
         if not v:
             return None
         if v and type(v) is ImageFieldFile:
-            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
+            return v.url
         else:
-            return v
+            return f"{settings.AWS_FULL_BASE_URL}/{v}"
