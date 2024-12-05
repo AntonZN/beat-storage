@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional, Any, TypeAlias, Union
 
 from django.db.models.fields.files import ImageFieldFile, FieldFile
+from django.conf import settings
 from pydantic import Field, field_validator
 
 from src.config.base_schema import BaseModel
@@ -38,7 +39,7 @@ class BeatSchema(BaseModel):
         if not v:
             return None
         if v and type(v) is FieldFile:
-            return v.url
+            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
         else:
             return v
 
@@ -47,7 +48,7 @@ class BeatSchema(BaseModel):
         if not v:
             return None
         if v and type(v) is FieldFile:
-            return v.url
+            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
         else:
             return v
 
@@ -56,6 +57,6 @@ class BeatSchema(BaseModel):
         if not v:
             return None
         if v and type(v) is ImageFieldFile:
-            return v.url
+            return f"{settings.AWS_FULL_BASE_URL}/{v.url}"
         else:
             return v

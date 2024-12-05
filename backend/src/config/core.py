@@ -46,6 +46,7 @@ AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://minio:9000")
 AWS_S3_CUSTOM_DOMAIN = env(
     "AWS_S3_CUSTOM_DOMAIN", default=f"localhost:9000/{AWS_STORAGE_BUCKET_NAME}"
 )
+AWS_FULL_BASE_URL = env("AWS_FULL_BASE_URL")
 
 STORAGES = {
     "default": {
