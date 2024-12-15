@@ -56,6 +56,7 @@ class Beat(OrderedModel):
         Tag,
         related_name="beats",
         verbose_name="Теги",
+        blank=True,
     )
     is_hidden = models.BooleanField(default=False, verbose_name="Скрыть")
     is_paid = models.BooleanField(default=False, verbose_name="Платный/по подписке")
