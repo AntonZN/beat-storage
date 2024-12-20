@@ -2,6 +2,8 @@ import uuid
 
 from django.db import models
 from django.db.models import F
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 from ordered_model.models import OrderedModelQuerySet
 from parler.managers import TranslatableQuerySet
@@ -99,3 +101,15 @@ class Beat(OrderedModel):
 
     def refresh_from_db(self, *args, **kwargs):
         super().refresh_from_db(*args, **kwargs)
+
+
+@receiver(post_delete, sender=Beat)
+def delete_file_on_model_delete(sender, instance, **kwargs):
+    if instance.file:
+        instance.file.delete(save=False)
+
+    if instance.preview:
+        instance.preview.delete(save=False)
+
+    if instance.image:
+        instance.image.delete(save=False)
