@@ -13,6 +13,7 @@ File: TypeAlias = Union[Any]
 class CategorySchema(BaseModel):
     id: int
     name: str
+    is_hidden: bool = Field(alias="isHidden")
 
 
 class TagSchema(BaseModel):

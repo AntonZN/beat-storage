@@ -22,6 +22,7 @@ class TranslatableOrderedManager(TranslatableManager):
 
 class Category(OrderedModel):
     name = models.CharField(max_length=100, verbose_name="Название категории")
+    is_hidden = models.BooleanField(default=False, verbose_name="Скрыть")
 
     class Meta:
         verbose_name = "Категория"
@@ -50,7 +51,7 @@ class Beat(OrderedModel):
         ext = filename.split(".")[-1]
         return f"beats/{name}.{ext}"
 
-    name = models.CharField(max_length=100, verbose_name="Название")
+    name = models.CharField(max_length=100, verbose_name="Название", unique=True)
     categories = models.ManyToManyField(
         Category, related_name="beats", verbose_name="Категории"
     )

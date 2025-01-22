@@ -6,7 +6,8 @@ from .models import Beat, Category, Tag
 
 @admin.register(Category)
 class CategoryAdmin(OrderedModelAdmin):
-    list_display = ("name", "move_up_down_links")
+    list_display = ("name", "is_hidden", "move_up_down_links")
+    list_filter = ("is_hidden",)
     search_fields = ("name",)
 
 
