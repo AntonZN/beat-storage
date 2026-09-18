@@ -19,7 +19,7 @@ services:
       - backend
 
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -33,7 +33,7 @@ services:
     command: server --console-address ":9001" /data
 
   minio-client:
-    image: minio/mc
+    image: quay.io/minio/mc
     depends_on:
       - minio
     environment:
