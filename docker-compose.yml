@@ -48,7 +48,8 @@ services:
         sleep 3;
       done;
       /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
-      /usr/bin/mc mb myminio/storage;
+      /usr/bin/mc mb --ignore-existing myminio/storage;
+      /usr/bin/mc anonymous set download myminio/storage/media;
       exec /bin/sh;
       "
 
