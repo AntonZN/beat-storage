@@ -12,6 +12,14 @@ from src.domain.beats.models import Beat, Category
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 PREVIEW_SUFFIX = "_preview"
+MIX_SUFFIX = "_mix"
+
+# Приоритет при импорте: сначала обычные папки-биты (свой файл, превью, обложка),
+# и только потом "россыпи" m4a без своей папки (эффекты/лупы). Это важно, когда один
+# и тот же трек продублирован в обеих формах (см. FLAT ниже) - тогда первым в базу
+# попадёт качественный вариант, а россыпь просто привяжет свою категорию к нему же.
+PRIORITY_FOLDER = 0
+PRIORITY_FLAT = 1
 
 
 @dataclass
@@ -21,11 +29,19 @@ class BeatFolder:
     file: Path
     preview: Path
     image: Optional[Path]
-    image_is_tie: bool
+    image_is_tie: bool = False
+    share_preview: bool = False  # превью - это тот же файл, что и основной трек
+    priority: int = PRIORITY_FOLDER
 
 
 def clean_category_name(folder_name: str) -> str:
     return folder_name.replace("++", "").strip()
+
+
+def clean_track_name(stem: str) -> str:
+    if stem.lower().endswith(MIX_SUFFIX):
+        stem = stem[: -len(MIX_SUFFIX)]
+    return stem.strip()
 
 
 def pick_image(images: list[Path]) -> tuple[Optional[Path], bool]:
@@ -38,11 +54,41 @@ def pick_image(images: list[Path]) -> tuple[Optional[Path], bool]:
     return newest, is_tie
 
 
+def list_images(directory: Path) -> list[Path]:
+    return [
+        p
+        for p in directory.iterdir()
+        if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in IMAGE_EXTENSIONS
+    ]
+
+
+def find_shared_image(start_dir: Path, category_dir: Path) -> tuple[Optional[Path], bool]:
+    """
+    Для "россыпей" m4a своей обложки у трека нет - есть один общий значок на всю
+    пачку эффектов/лупов, который может лежать как рядом с файлами, так и уровнем выше
+    (например `Drum Loops/m4a/_Group.png` - общий для `m4a/1` и `m4a/2`). Поднимаемся
+    от папки с файлами вверх, но не выше корня категории, и берём первую попавшуюся
+    картинку.
+    """
+    current = start_dir
+    while True:
+        images = list_images(current)
+        if images:
+            return pick_image(images)
+        if current == category_dir:
+            return None, False
+        current = current.parent
+
+
 def find_beat_folders(category_dir: Path) -> tuple[list[BeatFolder], list[tuple[Path, int, int]]]:
     """
-    Бит - это любая папка внутри категории, в которой ровно один основной m4a
+    Обычный бит - это любая папка внутри категории, в которой ровно один основной m4a
     и ровно один превью-m4a (`*_preview.m4a`). Название папки = название бита.
     Так находятся и `sounds`, и `sound`, и вложенные `sounds/1`, и биты прямо в категории.
+
+    Если в конечной папке (без подпапок) лежат m4a без единой пары main+preview - это
+    россыпь эффектов/лупов: каждый m4a там - отдельный бит, превью для него - тот же
+    файл, а обложка общая на всю пачку (см. find_shared_image).
     """
     beats, skipped = [], []
     for current, dirs, files in os.walk(category_dir):
@@ -52,30 +98,52 @@ def find_beat_folders(category_dir: Path) -> tuple[list[BeatFolder], list[tuple[
         m4a = [p for p in visible if p.suffix.lower() == ".m4a"]
         if not m4a:
             continue
-        previews = [p for p in m4a if p.stem.lower().endswith(PREVIEW_SUFFIX)]
-        mains = [p for p in m4a if p not in previews]
-        if len(mains) != 1 or len(previews) != 1:
+        previews = {p.stem.lower()[: -len(PREVIEW_SUFFIX)]: p for p in m4a if p.stem.lower().endswith(PREVIEW_SUFFIX)}
+        mains = [p for p in m4a if not p.stem.lower().endswith(PREVIEW_SUFFIX)]
+
+        if len(mains) == 1 and len(previews) == 1:
+            images = [p for p in visible if p.suffix.lower() in IMAGE_EXTENSIONS]
+            image, is_tie = pick_image(images)
+            beats.append(
+                BeatFolder(
+                    name=current.name,
+                    path=current,
+                    file=mains[0],
+                    preview=next(iter(previews.values())),
+                    image=image,
+                    image_is_tie=is_tie,
+                )
+            )
+            continue
+
+        if dirs or not mains:
             skipped.append((current, len(mains), len(previews)))
             continue
-        images = [p for p in visible if p.suffix.lower() in IMAGE_EXTENSIONS]
-        image, is_tie = pick_image(images)
-        beats.append(
-            BeatFolder(
-                name=current.name,
-                path=current,
-                file=mains[0],
-                preview=previews[0],
-                image=image,
-                image_is_tie=is_tie,
+
+        # россыпь: своей папки на бит нет, m4a лежат прямо здесь
+        image, is_tie = find_shared_image(current, category_dir)
+        for main in mains:
+            preview = previews.get(main.stem.lower())
+            beats.append(
+                BeatFolder(
+                    name=clean_track_name(main.stem),
+                    path=current,
+                    file=main,
+                    preview=preview or main,
+                    image=image,
+                    image_is_tie=is_tie,
+                    share_preview=preview is None,
+                    priority=PRIORITY_FLAT,
+                )
             )
-        )
     return beats, skipped
 
 
 class Command(BaseCommand):
     help = (
         "Импортирует биты из папки: категория/.../<название бита>/ с основным m4a, "
-        "превью (*_preview.m4a) и самой новой по дате картинкой."
+        "превью (*_preview.m4a) и самой новой по дате картинкой. Также берёт "
+        "\"россыпи\" m4a без своей папки (эффекты/лупы) - там каждый файл сам себе бит."
     )
 
     def add_arguments(self, parser):
@@ -113,6 +181,9 @@ class Command(BaseCommand):
         if not plan:
             raise CommandError("Не найдено ни одного бита")
 
+        # стабильная сортировка: обычные папки-биты - раньше россыпей (см. PRIORITY_*)
+        plan.sort(key=lambda item: item[1].priority)
+
         self.report_plan(root, plan, skipped_total)
         if dry_run:
             self.stdout.write(self.style.WARNING("dry-run: ничего не загружено"))
@@ -128,7 +199,9 @@ class Command(BaseCommand):
             if image:
                 mtime = datetime.fromtimestamp(image.stat().st_mtime)
                 image_info = f"{image.name} ({mtime:%Y-%m-%d})"
-            line = f"{category_name} / {beat.name}: {beat.file.name}, {beat.preview.name}, {image_info}"
+            preview_info = "= основной файл" if beat.share_preview else beat.preview.name
+            flat_tag = " [россыпь]" if beat.priority == PRIORITY_FLAT else ""
+            line = f"{category_name} / {beat.name}{flat_tag}: {beat.file.name}, {preview_info}, {image_info}"
             if not image:
                 self.stdout.write(self.style.WARNING(line))
             elif beat.image_is_tie:
@@ -190,16 +263,20 @@ class Command(BaseCommand):
         beat = Beat(name=folder.name)
         saved = []
         try:
-            for field, path in (
+            for field_name, path in (
                 ("file", folder.file),
-                ("preview", folder.preview),
+                (None if folder.share_preview else "preview", folder.preview),
                 ("image", folder.image),
             ):
-                if path is None:
+                if field_name is None or path is None:
                     continue
                 with path.open("rb") as fh:
-                    getattr(beat, field).save(path.name, File(fh), save=False)
-                saved.append(getattr(beat, field))
+                    getattr(beat, field_name).save(path.name, File(fh), save=False)
+                saved.append(getattr(beat, field_name))
+            if folder.share_preview:
+                # превью = тот же файл, что и основной трек - не грузим второй раз,
+                # а переиспользуем уже загруженный ключ в хранилище
+                beat.preview.name = beat.file.name
             with transaction.atomic():
                 beat.save()
                 beat.categories.add(category)
