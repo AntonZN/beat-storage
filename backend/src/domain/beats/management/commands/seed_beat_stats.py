@@ -20,8 +20,10 @@ class Command(BaseCommand):
     help = (
         "Накручивает usage_count (просмотры) и likes_count (лайки) для битов: "
         "точные цифры для известных из KNOWN_STATS, случайные для остальных. "
-        "Не трогает биты, у которых счётчики уже не нулевые - если только не "
-        "передан --force."
+        "По умолчанию не трогает биты, у которых счётчики уже не нулевые - "
+        "передайте --add, чтобы прибавить к тому, что уже накопилось "
+        "(например, органические просмотры после переналивки каталога), "
+        "или --force, чтобы просто заменить их новым значением."
     )
 
     def add_arguments(self, parser):
@@ -47,7 +49,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Перезаписать и те биты, у которых счётчики уже не нулевые",
+            help="Заменить счётчики новым значением и у тех битов, у которых они уже не нулевые",
+        )
+        parser.add_argument(
+            "--add",
+            action="store_true",
+            help="Прибавить новое значение к уже имеющимся счётчикам, а не заменить их",
         )
         parser.add_argument(
             "--dry-run",
@@ -63,6 +70,7 @@ class Command(BaseCommand):
         like_ratio_max: float,
         seed: int | None,
         force: bool,
+        add: bool,
         dry_run: bool,
         **options,
     ):
@@ -70,6 +78,8 @@ class Command(BaseCommand):
             raise CommandError("--min-views не может быть больше --max-views")
         if like_ratio_min > like_ratio_max:
             raise CommandError("--like-ratio-min не может быть больше --like-ratio-max")
+        if force and add:
+            raise CommandError("--force и --add вместе не имеют смысла, выберите один режим")
 
         rng = random.Random(seed)
 
@@ -92,7 +102,8 @@ class Command(BaseCommand):
                 likes = max(0, round(views * ratio))
                 source = "случайно"
 
-            if not force and (beat.usage_count or beat.likes_count):
+            has_existing = bool(beat.usage_count or beat.likes_count)
+            if has_existing and not force and not add:
                 skipped += 1
                 self.stdout.write(
                     f"{beat.name}: пропущен, уже есть счётчики "
@@ -100,12 +111,21 @@ class Command(BaseCommand):
                 )
                 continue
 
-            self.stdout.write(
-                f"{beat.name}: {views} просмотров, {likes} лайков ({source})"
-            )
+            if add:
+                new_views = beat.usage_count + views
+                new_likes = beat.likes_count + likes
+                self.stdout.write(
+                    f"{beat.name}: {beat.usage_count}+{views}={new_views} просмотров, "
+                    f"{beat.likes_count}+{likes}={new_likes} лайков ({source})"
+                )
+            else:
+                new_views, new_likes = views, likes
+                self.stdout.write(
+                    f"{beat.name}: {views} просмотров, {likes} лайков ({source})"
+                )
             if not dry_run:
-                beat.usage_count = views
-                beat.likes_count = likes
+                beat.usage_count = new_views
+                beat.likes_count = new_likes
                 beat.save(update_fields=["usage_count", "likes_count"])
             updated += 1
 
