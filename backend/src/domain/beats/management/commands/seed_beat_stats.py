@@ -57,6 +57,16 @@ class Command(BaseCommand):
             help="Прибавить новое значение к уже имеющимся счётчикам, а не заменить их",
         )
         parser.add_argument(
+            "--max-current-views",
+            type=int,
+            default=None,
+            help=(
+                "Трогать только биты, у которых сейчас МЕНЬШЕ стольки просмотров. "
+                "Остальные пропускаются безусловно, даже с --add/--force - чтобы "
+                "не докручивать то, что уже накрутили раньше"
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Ничего не сохранять, только показать, что было бы сделано",
@@ -71,6 +81,7 @@ class Command(BaseCommand):
         seed: int | None,
         force: bool,
         add: bool,
+        max_current_views: int | None,
         dry_run: bool,
         **options,
     ):
@@ -91,6 +102,14 @@ class Command(BaseCommand):
         updated = skipped = 0
 
         for beat in beats:
+            if max_current_views is not None and beat.usage_count >= max_current_views:
+                skipped += 1
+                self.stdout.write(
+                    f"{beat.name}: пропущен, уже {beat.usage_count} просмотров "
+                    f"(порог --max-current-views={max_current_views})"
+                )
+                continue
+
             known = KNOWN_STATS.get(beat.name.strip().lower())
             if known:
                 matched_known.add(beat.name.strip().lower())
